@@ -1,8 +1,10 @@
-# PBS163 — Find My + health sync for a cheap smart band
+# BandBridge — health bridge for a cheap smart band
 
 Reverse-engineered **Polosmart PBS163** (HryFine-family) smart bracelet: BLE protocol,
 a macOS control CLI, a native iOS app, and a React Native app that writes the band's
 data into Apple Health / Health Connect.
+
+The name is the point: the band talks to *your* health app, not to a vendor cloud.
 
 No HryFine, no ads, no account, no cloud.
 

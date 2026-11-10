@@ -1,4 +1,4 @@
-# PBS163 iOS
+# BandBridge iOS
 
 Tek ekran, reklamsız, hesapsız. Bileklikten adım/nabız/uyku/kalori/mesafe okuyup
 Apple Health'e yazar. HryFine gerekmez.
