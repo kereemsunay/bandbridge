@@ -74,7 +74,18 @@ Yapılabilir:
 - Saat/12-24 saat/birim ayarı.
 - Alarm, hareketsizlik ve su hatırlatıcı (protokolde mevcut; uygulama arayüzü
   henüz eklemedi).
-- Müzik ekranındaki tuş olaylarını dinleme (şu an yalnızca kayda yazıyor).
+- Müzik kontrolü: banttaki müzik ekranında tuşa basınca telefonun aktif
+  oynatıcısına sonraki / önceki / oynat-duraklat gönderilir.
+
+### Müzik kontrolünü açma
+
+1. Uygulamada **"izin ver"** bağlantısına bas (veya Android Ayarlar →
+   Bildirimler → Cihaz ve uygulama bildirimleri → BandBridge).
+2. Bildirim erişimini aç.
+3. Telefonda Spotify / YouTube Music / herhangi bir oynatıcıda müzik başlat.
+4. Saatte müzik ekranını aç, tuşa bas. Uygulama komutu aktif oynatıcıya iletir.
+
+Aktif oynatıcı yoksa kayıt satırında "aktif oynatıcı yok" yazar.
 
 Yapılamaz:
 - Menü, widget, yeni ekran eklemek (firmware kapalı).

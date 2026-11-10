@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated, Easing, Modal, PermissionsAndroid, Platform, Pressable,
+  Animated, AppState, Easing, Modal, PermissionsAndroid, Platform, Pressable,
   ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View,
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BandClient } from "./src/ble";
 import { Health } from "./src/health";
+import { hasMusicAccess, sendMusic, openMusicSettings } from "./src/music";
 import { Decoded, CALORIES_PER_KCAL } from "./src/protocol";
 
 const C = {
@@ -61,6 +62,7 @@ function Screen() {
   const [bp, setBp] = useState<string | null>(null);
   const [temp, setTemp] = useState<number | null>(null);
   const [workouts, setWorkouts] = useState(0);
+  const [musicOK, setMusicOK] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +78,13 @@ function Screen() {
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", async (state) => {
+      if (state === "active") setMusicOK(await hasMusicAccess());
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
@@ -104,6 +113,7 @@ function Screen() {
       const hc = await Health.init();
       if (!alive) return;
       setHealthOK(hc);
+      setMusicOK(await hasMusicAccess());
 
       client.onBattery = (level) => {
         if (!alive) return;
@@ -149,15 +159,20 @@ function Screen() {
           setWorkouts((n) => n + 1);
           log(`antrenman ${Math.round((d.end.getTime() - d.start.getTime()) / 60000)} dk`);
         } else if (d.kind === "media") {
-          const names: Record<number, string> = {
-            0x0a: "müzik: oynat/duraklat",
-            0x0b: "müzik: oynat/duraklat",
-            0x0c: "müzik: önceki",
-            0x0d: "müzik: sonraki",
-            0x03: "kamera: deklanşör",
-            0x04: "kamera: deklanşör",
-          };
-          log(names[d.key] ?? `tuş olayı ${d.key}`);
+          const action =
+            d.key === 0x0d ? "next" : d.key === 0x0c ? "prev" :
+            d.key === 0x0a || d.key === 0x0b ? "playpause" : null;
+          const label = action === "next" ? "sonraki" : action === "prev" ? "önceki" : "oynat/duraklat";
+          if (action) {
+            if (musicOK) {
+              const ok = await sendMusic(action);
+              log(`müzik: ${label} ${ok ? "gönderildi" : "aktif oynatıcı yok"}`);
+            } else {
+              log("müzik: bildirim erişimi yok");
+            }
+          } else {
+            log(`tuş olayı ${d.key}`);
+          }
         }
         try {
           await Health.ingest(d);
@@ -304,6 +319,17 @@ function Screen() {
               <Text style={s.footLink}>nasıl bağlanır?</Text>
             </Pressable>
           </View>
+        </View>
+
+        <View style={s.musicRow}>
+          <Text style={[s.foot, { color: musicOK ? C.green : C.muted }]}>
+            MÜZİK KONTROLÜ · {musicOK ? "AÇIK" : "İZİN YOK"}
+          </Text>
+          {!musicOK && (
+            <Pressable onPress={openMusicSettings} hitSlop={10}>
+              <Text style={s.footLink}>izin ver</Text>
+            </Pressable>
+          )}
         </View>
 
         {error && <Text style={s.error}>{error}</Text>}
@@ -481,6 +507,7 @@ const s = StyleSheet.create({
   footRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12, alignItems: "center" },
   foot: { fontSize: 9.5, letterSpacing: 1.2, fontWeight: "700" },
   footLinks: { flexDirection: "row", gap: 14 },
+  musicRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8, alignItems: "center" },
   footLink: { fontSize: 11, color: C.muted, textDecorationLine: "underline" },
   error: { marginTop: 10, fontSize: 11, color: C.red, letterSpacing: 0.4 },
   subHead: { marginTop: 26, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink },
