@@ -1,0 +1,31 @@
+.DS_Store
+*.apk
+*.aab
+*.ipa
+*.dSYM
+
+# Node / React Native
+node_modules/
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/.cxx/
+app/ios/Pods/
+app/ios/build/
+app/vendor/
+*.hprof
+
+# Xcode
+DerivedData/
+build/
+*.xcuserdatad
+xcuserdata/
+ios/*.xcodeproj/
+
+# Swift CLI binary
+cli/pbsctl
+
+# Local env
+.env
+.env.*
+*.log
