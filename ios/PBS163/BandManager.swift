@@ -52,7 +52,7 @@ final class BandManager: NSObject, ObservableObject {
 
     private func scan() {
         status = "Saat aranıyor…"
-        central.scanForPeripherals(withServices: [CBUUID(string: PBS.service)], options: nil)
+        central.scanForPeripherals(withServices: nil, options: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
             guard let self, self.band == nil else { return }
             self.status = "Saat bulunamadı. Ekranına dokun ve tekrar dene."
@@ -87,6 +87,7 @@ final class BandManager: NSObject, ObservableObject {
         after(2.6) {
             if let b = self.batteryChar { p.readValue(for: b) }
         }
+        after(3.0) { self.status = "Bağlı" }
     }
 
     func syncNow() {

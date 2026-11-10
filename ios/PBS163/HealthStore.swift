@@ -53,7 +53,7 @@ final class HealthStore {
 
         let dSteps = Double(delta)
         let dDist = distance >= 0 ? Double(distance) : 0
-        let dCal = calories >= 0 ? Double(calories) : 0
+        let dCal = calories >= 0 ? Double(calories) / 1000 : 0
 
         if let t = HKQuantityType.quantityType(forIdentifier: .stepCount) {
             let q = HKQuantitySample(type: t, quantity: HKQuantity(unit: .count(), doubleValue: dSteps), start: from, end: end)

@@ -148,7 +148,7 @@ struct ContentView: View {
             Spacer()
             if band.lastSync != nil && healthOK {
                 VStack(spacing: 1) {
-                    Text("AKTARILDI")
+                    Text("SENKRON")
                         .font(.system(size: 9.5, weight: .heavy))
                         .tracking(1.8)
                     Text(band.lastSync!.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))
@@ -175,7 +175,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             row("ADIM", band.todaySteps > 0 || band.lastSync != nil ? fmt(band.todaySteps) : "—")
             row("MESAFE", band.lastSync != nil ? distance(band.todayDistance) : "—")
-            row("KALORİ", band.lastSync != nil ? "\(fmt(band.todayCalories)) kcal" : "—")
+            row("KALORİ", band.lastSync != nil ? "\(fmt(band.todayCalories / 1000)) kcal" : "—")
             row("NABIZ", "—")
             row("UYKU", "—", last: true)
         }

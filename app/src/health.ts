@@ -50,32 +50,38 @@ export class Health {
       if (delta <= 0 && deltaDist <= 0 && deltaCal <= 0) return;
 
       const start = (await AsyncStorage.getItem("hc.sampleStart")) ?? now.toISOString();
-      const from = new Date(Math.max(new Date(start).getTime(), new Date(day).getTime()));
-      const records: any[] = [
+      let from = new Date(Math.max(new Date(start).getTime(), new Date(day).getTime()));
+      if (from.getTime() >= now.getTime()) {
+        from = new Date(now.getTime() - 60_000);
+      }
+      await insertRecords([
         {
           recordType: "Steps",
           count: delta,
           startTime: from.toISOString(),
           endTime: now.toISOString(),
         },
-      ];
+      ] as any);
       if (deltaDist > 0) {
-        records.push({
-          recordType: "Distance",
-          distance: { value: deltaDist, unit: "meters" },
-          startTime: from.toISOString(),
-          endTime: now.toISOString(),
-        });
+        await insertRecords([
+          {
+            recordType: "Distance",
+            distance: { value: deltaDist, unit: "meters" },
+            startTime: from.toISOString(),
+            endTime: now.toISOString(),
+          },
+        ] as any);
       }
       if (deltaCal > 0) {
-        records.push({
-          recordType: "ActiveCaloriesBurned",
-          energy: { value: deltaCal, unit: "kilocalories" },
-          startTime: from.toISOString(),
-          endTime: now.toISOString(),
-        });
+        await insertRecords([
+          {
+            recordType: "ActiveCaloriesBurned",
+            energy: { value: deltaCal / 1000, unit: "kilocalories" },
+            startTime: from.toISOString(),
+            endTime: now.toISOString(),
+          },
+        ] as any);
       }
-      await insertRecords(records as any);
       await AsyncStorage.setItem("hc.steps", String(d.steps));
       await AsyncStorage.setItem("hc.dist", String(d.distance));
       await AsyncStorage.setItem("hc.cal", String(d.calories));

@@ -42,7 +42,7 @@ cover block.
 - Connected: green cover, paper dot, `BAĞLI`.
 - Disconnected: dimmed dot, `BAĞLI DEĞİL`; primary label becomes `BAĞLAN`.
 - Syncing: button label `AKTARILIYOR`, disabled.
-- Synced: green outlined stamp `AKTARILDI` + time, rotated −3.5°, spring in.
+- Synced: green outlined stamp `SENKRON` + time, rotated −3.5°, spring in.
 - Health missing: `SAĞLIK İZNİ YOK`, red foot line; no stamp.
 - Empty data: em dash, never a fake zero.
 

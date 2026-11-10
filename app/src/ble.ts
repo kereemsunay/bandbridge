@@ -32,7 +32,7 @@ export class BandClient {
   private scan() {
     if (this.connected) return;
     this.onStatus?.("Saat aranıyor…", false);
-    this.manager.startDeviceScan([SERVICE], null, async (error, dev) => {
+    this.manager.startDeviceScan(null, null, async (error, dev) => {
       if (error) {
         this.onStatus?.(`Tarama hatası: ${error.message}`, false);
         return;
@@ -89,6 +89,7 @@ export class BandClient {
 
   private async handshake() {
     this.onStatus?.("Senkronize ediliyor…", true);
+    this.buzz(400);
     await this.write(packet(0x02, 0x01, timePayload()));
     await this.sleep(300);
     await this.write(packet(0xf3, 0x00));
@@ -98,6 +99,8 @@ export class BandClient {
     await this.write(packet(0x05, 0x01)); // history
     await this.sleep(500);
     await this.write(packet(0x05, 0x06, [0x01])); // realtime steps
+    this.buzz(300);
+    this.onStatus?.("Bağlı", true);
   }
 
   async syncNow() {
@@ -105,11 +108,25 @@ export class BandClient {
       this.scan();
       return;
     }
+    this.onStatus?.("Senkronize ediliyor…", true);
+    this.buzz(400);
     await this.write(packet(0x02, 0x01, timePayload()));
     await this.sleep(200);
     await this.write(packet(0x05, 0x01));
     await this.sleep(400);
     await this.write(packet(0x05, 0x06, [0x01]));
+    setTimeout(() => {
+      this.buzz(400);
+      this.onStatus?.("Bağlı", true);
+    }, 1200);
+  }
+
+  cancel() {
+    this.manager.stopDeviceScan();
+    if (this.device) this.device.cancelConnection().catch(() => {});
+    this.device = undefined;
+    this.connected = false;
+    this.onStatus?.("Bağlı değil", false);
   }
 
   async disconnect() {
@@ -123,6 +140,14 @@ export class BandClient {
     const d = this.device;
     if (!d) return;
     await d.writeCharacteristicWithResponseForService(SERVICE, RX, base64);
+  }
+
+  private async buzz(ms = 450) {
+    try {
+      await this.write(packet(0x02, 0x0b, [0x01]));
+      await this.sleep(ms);
+      await this.write(packet(0x02, 0x0b, [0x00]));
+    } catch {}
   }
 
   private sleep(ms: number) {

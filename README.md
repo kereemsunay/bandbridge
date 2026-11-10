@@ -26,6 +26,12 @@ No HryFine, no ads, no account, no cloud.
 | Real-time heart rate | ❌ band does not stream it |
 | Background sync | ⚠️ app-open only for now |
 
+## Usage guide
+
+Turkish step-by-step guide: [docs/KULLANIM.md](docs/KULLANIM.md). Covers first-run
+permissions, how the band pairs (no pairing mode — it only advertises), daily sync,
+delays, the cal → kcal conversion, and what the band can and cannot do.
+
 ## Repo layout
 
 ```
