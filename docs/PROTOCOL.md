@@ -93,7 +93,7 @@ Typical app handshake: read `2A27` → `F3/00` → bind `03/00` → `05/01` → 
 | `07` | Sync start | `01` |
 | `08` | Sync end | `01` |
 | `09` | Sleep summary | date(2), startMin u16, light u16, deep u16, endMin u16, awake u16 |
-| `0C` | Today totals | steps u32, distance u32, calories u32 |
+| `0C` | Today totals | steps u32, distance u32, calories u32 (small cal; divide by 1000 for kcal) |
 | `0F` | Sport modes | — |
 | `10` | Workouts | date(2), start u32, duration u32, mode, HR[5], calories u32, distance u32, steps u32 |
 

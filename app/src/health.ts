@@ -7,7 +7,7 @@ import {
   SleepStageType,
 } from "react-native-health-connect";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Decoded } from "./protocol";
+import { Decoded, CALORIES_PER_KCAL } from "./protocol";
 
 const perms: Permission[] = [
   { accessType: "write", recordType: "Steps" },
@@ -76,7 +76,7 @@ export class Health {
         await insertRecords([
           {
             recordType: "ActiveCaloriesBurned",
-            energy: { value: deltaCal / 1000, unit: "kilocalories" },
+            energy: { value: deltaCal / CALORIES_PER_KCAL, unit: "kilocalories" },
             startTime: from.toISOString(),
             endTime: now.toISOString(),
           },

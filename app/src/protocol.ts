@@ -1,6 +1,9 @@
 import { Buffer } from "buffer";
 
 // PBS163 / HryFine protocol, ported from the decompiled official app.
+// The band reports small calories (cal); the official app divides by 1000.
+export const CALORIES_PER_KCAL = 1000;
+
 export const SERVICE = "6E400001-B5A3-F393-E0A9-E50E24DCCA9F";
 export const RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9F";
 export const TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9F";

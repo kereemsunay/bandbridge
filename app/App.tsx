@@ -6,7 +6,7 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BandClient } from "./src/ble";
 import { Health } from "./src/health";
-import { Decoded } from "./src/protocol";
+import { Decoded, CALORIES_PER_KCAL } from "./src/protocol";
 
 const C = {
   ground: "#E7EBE2",
@@ -27,7 +27,7 @@ const fmt = (n: number) => n.toLocaleString("tr-TR");
 const distance = (m: number) =>
   m >= 1000 ? `${(m / 1000).toFixed(1).replace(".", ",")} km` : `${m} m`;
 const kcal = (c: number) => {
-  const v = c / 1000;
+  const v = c / CALORIES_PER_KCAL;
   return v >= 10 ? fmt(Math.round(v)) : v.toFixed(1).replace(".", ",");
 };
 const clock = (d: Date) => d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
