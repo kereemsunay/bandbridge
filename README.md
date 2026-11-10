@@ -21,6 +21,10 @@ No HryFine, no ads, no account, no cloud.
 | Today's steps / distance / calories (`key 12`) | ✅ verified |
 | History sync (`05/01`) handshake | ✅ starts, empty until a past day exists |
 | 15-min step buckets (`key 02`), HR (`key 04`), sleep (`key 09`) | parser written, needs a full day of data |
+| SpO2 (`key 14`), blood pressure (`key 05`), temperature (`key 13`) | parser + Health Connect write |
+| Workouts (`key 16`) | parser + ExerciseSession write |
+| Battery level | ✅ header |
+| Media button events (`0C`) | logged, playback control not wired |
 | iOS HealthKit app | ✅ builds (needs signing team) |
 | React Native Android app + Health Connect | ✅ APK builds |
 | Real-time heart rate | ❌ band does not stream it |

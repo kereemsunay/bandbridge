@@ -57,6 +57,10 @@ function Screen() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [healthOK, setHealthOK] = useState(false);
   const [battery, setBattery] = useState<number | null>(null);
+  const [spo2, setSpo2] = useState<number | null>(null);
+  const [bp, setBp] = useState<string | null>(null);
+  const [temp, setTemp] = useState<number | null>(null);
+  const [workouts, setWorkouts] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +136,28 @@ function Screen() {
         } else if (d.kind === "sleep") {
           setSleep(Math.round((d.end.getTime() - d.start.getTime()) / 60000));
           log("uyku kaydı");
+        } else if (d.kind === "spo2") {
+          setSpo2(d.percent);
+          log(`spO2 %${d.percent}`);
+        } else if (d.kind === "bp") {
+          setBp(`${d.systolic}/${d.diastolic}`);
+          log(`tansiyon ${d.systolic}/${d.diastolic}`);
+        } else if (d.kind === "temp") {
+          setTemp(d.celsius);
+          log(`sıcaklık ${d.celsius.toFixed(1).replace(".", ",")}°C`);
+        } else if (d.kind === "workout") {
+          setWorkouts((n) => n + 1);
+          log(`antrenman ${Math.round((d.end.getTime() - d.start.getTime()) / 60000)} dk`);
+        } else if (d.kind === "media") {
+          const names: Record<number, string> = {
+            0x0a: "müzik: oynat/duraklat",
+            0x0b: "müzik: oynat/duraklat",
+            0x0c: "müzik: önceki",
+            0x0d: "müzik: sonraki",
+            0x03: "kamera: deklanşör",
+            0x04: "kamera: deklanşör",
+          };
+          log(names[d.key] ?? `tuş olayı ${d.key}`);
         }
         try {
           await Health.ingest(d);
@@ -281,6 +307,22 @@ function Screen() {
         </View>
 
         {error && <Text style={s.error}>{error}</Text>}
+
+        {(spo2 !== null || bp !== null || temp !== null || workouts > 0) && (
+          <>
+            <View style={s.subHead}>
+              <Text style={s.label}>DİĞER</Text>
+            </View>
+            <View>
+              {spo2 !== null && <Row label="SpO2" value={`%${spo2}`} />}
+              {bp !== null && <Row label="Tansiyon" value={bp} />}
+              {temp !== null && (
+                <Row label="Sıcaklık" value={`${temp.toFixed(1).replace(".", ",")} °C`} />
+              )}
+              {workouts > 0 && <Row label="Antrenman" value={`${workouts} kayıt`} last />}
+            </View>
+          </>
+        )}
 
         <View style={s.logHead}>
           <Text style={s.label}>KAYIT</Text>
@@ -441,6 +483,7 @@ const s = StyleSheet.create({
   footLinks: { flexDirection: "row", gap: 14 },
   footLink: { fontSize: 11, color: C.muted, textDecorationLine: "underline" },
   error: { marginTop: 10, fontSize: 11, color: C.red, letterSpacing: 0.4 },
+  subHead: { marginTop: 26, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink },
   logHead: { marginTop: 32, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink },
   logRow: { flexDirection: "row", alignItems: "baseline", paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.rule },
   logTime: { fontFamily: MONO, fontSize: 10, color: C.muted, width: 52 },

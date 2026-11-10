@@ -53,7 +53,12 @@ export type Decoded =
   | { kind: "totals"; steps: number; distance: number; calories: number }
   | { kind: "steps"; date: Date; buckets: { start: Date; steps: number; distance: number; calories: number }[] }
   | { kind: "hr"; date: Date; samples: { time: Date; bpm: number }[] }
-  | { kind: "sleep"; date: Date; start: Date; end: Date; light: number; deep: number; awake: number };
+  | { kind: "sleep"; date: Date; start: Date; end: Date; light: number; deep: number; awake: number }
+  | { kind: "spo2"; time: Date; percent: number }
+  | { kind: "bp"; time: Date; systolic: number; diastolic: number }
+  | { kind: "temp"; time: Date; celsius: number }
+  | { kind: "workout"; start: Date; end: Date; mode: number; hr: number[]; calories: number; distance: number; steps: number }
+  | { kind: "media"; key: number };
 
 const u16 = (b: Uint8Array, i: number) => (b[i] << 8) | b[i + 1];
 const u32 = (b: Uint8Array, i: number) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
@@ -68,6 +73,7 @@ function dateOf(b: Uint8Array, offset = 0): Date {
 }
 
 export function decode(f: Frame): Decoded | null {
+  if (f.cat === 0x0c) return { kind: "media", key: f.key };
   if (f.cat !== 0x05 || f.payload.length < 2) return null;
   const p = f.payload;
   const date = dateOf(p);
@@ -118,6 +124,64 @@ export function decode(f: Frame): Decoded | null {
 
   if (f.key === 0x0c && p.length >= 12) {
     return { kind: "totals", steps: u32(p, 0), distance: u32(p, 4), calories: u32(p, 8) };
+  }
+
+  if (f.key === 0x0e && p.length >= 12) {
+    const sec = u32(p, 4);
+    const t = new Date(date);
+    t.setHours(sec / 3600, (sec / 60) % 60, sec % 60, 0);
+    return { kind: "spo2", time: t, percent: p[11] };
+  }
+
+  if (f.key === 0x05 && p.length >= 4) {
+    const n = p[3];
+    if (n > 0) {
+      const o = 4;
+      if (o + 7 < p.length) {
+        const sec = u32(p, o);
+        const t = new Date(date);
+        t.setHours(sec / 3600, (sec / 60) % 60, sec % 60, 0);
+        const sys = p[o + 6], dia = p[o + 7];
+        if (sys >= 50 && sys <= 300 && dia >= 30 && dia <= 200) {
+          return { kind: "bp", time: t, systolic: sys, diastolic: dia };
+        }
+      }
+    }
+    return null;
+  }
+
+  if (f.key === 0x0d && p.length >= 4) {
+    const n = p[3];
+    if (n > 0 && 4 + 7 < p.length) {
+      const o = 4;
+      const sec = u32(p, o);
+      const t = new Date(date);
+      t.setHours(sec / 3600, (sec / 60) % 60, sec % 60, 0);
+      const celsius = p[o + 6] + p[o + 7] / 10;
+      if (celsius >= 30 && celsius <= 50) return { kind: "temp", time: t, celsius };
+    }
+    return null;
+  }
+
+  if (f.key === 0x10 && p.length >= 29) {
+    const startSec = u32(p, 2);
+    const duration = u32(p, 6);
+    if (duration > 0) {
+      const start = new Date(date);
+      start.setHours(startSec / 3600, (startSec / 60) % 60, startSec % 60, 0);
+      const end = new Date(start.getTime() + duration * 1000);
+      return {
+        kind: "workout",
+        start,
+        end,
+        mode: p[10],
+        hr: [p[12], p[13], p[14], p[15], p[16]],
+        calories: u32(p, 17),
+        distance: u32(p, 21),
+        steps: u32(p, 25),
+      };
+    }
+    return null;
   }
 
   return null;

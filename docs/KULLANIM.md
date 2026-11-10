@@ -54,6 +54,9 @@ Elle senkron için **SENKRONİZE ET**. Bağlantıyı kesmek için **bağlantıy�
 | Nabız | Geçmiş senkronunda; saatte ölçüm yapılmışsa |
 | Uyku | Ancak bir gece saat takılıysa, ertesi gün |
 | Geçmiş günler | Bir gün tamamlandıktan sonra |
+| SpO2, tansiyon, sıcaklık | Cihazda ölçüm varsa, geçmiş senkronunda |
+| Antrenman kaydı | Saatten antrenman başlatıldıysa |
+| Şarj | Bağlanınca üst şeritte |
 
 Bugünün toplamı `0` görünüyorsa saat gerçekten o gün adım saymamış olabilir;
 uygulama sahte değer üretmez.
@@ -71,6 +74,7 @@ Yapılabilir:
 - Saat/12-24 saat/birim ayarı.
 - Alarm, hareketsizlik ve su hatırlatıcı (protokolde mevcut; uygulama arayüzü
   henüz eklemedi).
+- Müzik ekranındaki tuş olaylarını dinleme (şu an yalnızca kayda yazıyor).
 
 Yapılamaz:
 - Menü, widget, yeni ekran eklemek (firmware kapalı).

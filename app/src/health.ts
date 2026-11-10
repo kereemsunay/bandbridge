@@ -15,6 +15,10 @@ const perms: Permission[] = [
   { accessType: "write", recordType: "SleepSession" },
   { accessType: "write", recordType: "ActiveCaloriesBurned" },
   { accessType: "write", recordType: "Distance" },
+  { accessType: "write", recordType: "OxygenSaturation" },
+  { accessType: "write", recordType: "BloodPressure" },
+  { accessType: "write", recordType: "BodyTemperature" },
+  { accessType: "write", recordType: "ExerciseSession" },
 ];
 
 export class Health {
@@ -148,6 +152,54 @@ export class Health {
         },
       ] as any);
       await AsyncStorage.setItem(key, "1");
+    }
+
+    if (d.kind === "spo2") {
+      const t = d.time.toISOString();
+      if (await AsyncStorage.getItem(`hc.spo2.${t}`)) return;
+      await insertRecords([{ recordType: "OxygenSaturation", percentage: d.percent, time: t }] as any);
+      await AsyncStorage.setItem(`hc.spo2.${t}`, "1");
+    }
+
+    if (d.kind === "bp") {
+      const t = d.time.toISOString();
+      if (await AsyncStorage.getItem(`hc.bp.${t}`)) return;
+      await insertRecords([
+        {
+          recordType: "BloodPressure",
+          systolic: { value: d.systolic, unit: "millimetersOfMercury" },
+          diastolic: { value: d.diastolic, unit: "millimetersOfMercury" },
+          bodyPosition: 0,
+          measurementLocation: 0,
+          time: t,
+        },
+      ] as any);
+      await AsyncStorage.setItem(`hc.bp.${t}`, "1");
+    }
+
+    if (d.kind === "temp") {
+      const t = d.time.toISOString();
+      if (await AsyncStorage.getItem(`hc.temp.${t}`)) return;
+      await insertRecords([
+        { recordType: "BodyTemperature", temperature: { value: d.celsius, unit: "celsius" }, time: t },
+      ] as any);
+      await AsyncStorage.setItem(`hc.temp.${t}`, "1");
+    }
+
+    if (d.kind === "workout") {
+      const t = d.start.toISOString();
+      if (await AsyncStorage.getItem(`hc.workout.${t}`)) return;
+      await insertRecords([
+        {
+          recordType: "ExerciseSession",
+          exerciseType: 0,
+          title: "Antrenman",
+          notes: `${d.steps} adım · ${(d.calories / 1000).toFixed(1)} kcal`,
+          startTime: t,
+          endTime: d.end.toISOString(),
+        },
+      ] as any);
+      await AsyncStorage.setItem(`hc.workout.${t}`, "1");
     }
   }
 }
