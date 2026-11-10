@@ -56,6 +56,7 @@ function Screen() {
   const [sleep, setSleep] = useState<number | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [healthOK, setHealthOK] = useState(false);
+  const [battery, setBattery] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +100,12 @@ function Screen() {
       const hc = await Health.init();
       if (!alive) return;
       setHealthOK(hc);
+
+      client.onBattery = (level) => {
+        if (!alive) return;
+        setBattery(level);
+        log(`batarya %${level}`);
+      };
 
       client.onStatus = (text, conn) => {
         if (!alive) return;
@@ -200,6 +207,8 @@ function Screen() {
             <View style={[s.dot, { backgroundColor: connected ? C.paper : "rgba(243,245,236,0.45)" }]} />
             <Text style={s.statusWord}>{connected ? "BAĞLI" : "BAĞLI DEĞİL"}</Text>
             {detail ? <Text style={s.statusDetail} numberOfLines={1}>{detail}</Text> : null}
+            <View style={{ flex: 1 }} />
+            <Text style={s.battery}>{battery === null ? "—" : `%${battery}`}</Text>
           </View>
         </View>
         {(phase === "scanning" || phase === "connecting" || phase === "syncing") && (
@@ -411,6 +420,7 @@ const s = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
   statusWord: { fontSize: 10, letterSpacing: 1.7, fontWeight: "700", color: C.paper },
   statusDetail: { fontFamily: MONO, fontSize: 10, color: "rgba(243,245,236,0.7)", marginLeft: 10, flexShrink: 1 },
+  battery: { fontFamily: MONO, fontSize: 10, color: "rgba(243,245,236,0.85)" },
   progress: { position: "absolute", left: 0, right: 0, bottom: 0, height: 2, overflow: "hidden" },
   sheet: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 36, maxWidth: 560, width: "100%", alignSelf: "center" },
   sectionHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 46 },

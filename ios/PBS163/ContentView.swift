@@ -121,6 +121,10 @@ struct ContentView: View {
                         .foregroundStyle(C.paper.opacity(0.7))
                         .lineLimit(1)
                 }
+                Spacer()
+                Text(band.battery.map { "%\($0)" } ?? "—")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(C.paper.opacity(0.85))
             }
             .padding(.top, 9)
         }

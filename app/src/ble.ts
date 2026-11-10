@@ -8,6 +8,8 @@ type Status = (text: string, connected: boolean) => void;
 type Data = (d: Decoded) => void;
 
 const USER_ID = "pbs163rn";
+const BATTERY_SERVICE = "180F";
+const BATTERY_LEVEL = "2A19";
 
 export class BandClient {
   manager = new BleManager();
@@ -18,6 +20,7 @@ export class BandClient {
 
   onStatus?: Status;
   onData?: Data;
+  onBattery?: (level: number) => void;
 
   start() {
     if (this.started) return;
@@ -84,12 +87,14 @@ export class BandClient {
       }
     });
 
+    this.readBattery();
     await this.handshake();
   }
 
   private async handshake() {
     this.onStatus?.("Senkronize ediliyor…", true);
     this.buzz(400);
+    this.readBattery();
     await this.write(packet(0x02, 0x01, timePayload()));
     await this.sleep(300);
     await this.write(packet(0xf3, 0x00));
@@ -110,6 +115,7 @@ export class BandClient {
     }
     this.onStatus?.("Senkronize ediliyor…", true);
     this.buzz(400);
+    this.readBattery();
     await this.write(packet(0x02, 0x01, timePayload()));
     await this.sleep(200);
     await this.write(packet(0x05, 0x01));
@@ -134,6 +140,16 @@ export class BandClient {
     this.connected = false;
     this.device = undefined;
     this.onStatus?.("Bağlı değil", false);
+  }
+
+  private async readBattery() {
+    try {
+      const ch = await this.device?.readCharacteristicForService(BATTERY_SERVICE, BATTERY_LEVEL);
+      if (ch?.value) {
+        const b = Buffer.from(ch.value, "base64");
+        if (b.length > 0) this.onBattery?.(b[0]);
+      }
+    } catch {}
   }
 
   private async write(base64: string) {

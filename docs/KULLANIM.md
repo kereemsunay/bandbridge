@@ -41,6 +41,7 @@ Uygulama içinde de aynı yönerge var: ana ekranda **"nasıl bağlanır?"**.
 2. Senkron başında ve sonunda saat kısa titreşir.
 3. Ekranda **SENKRON** damgası ve saat görünür.
 4. Değerler Health Connect'e yazılır; Sağlık uygulamasında görünür.
+   Üst şeritte saatin şarjı görünür.
 5. İşin bitince uygulamayı kapatabilirsin; tekrar açtığında yeniden bağlanır.
 
 Elle senkron için **SENKRONİZE ET**. Bağlantıyı kesmek için **bağlantıyı kes**.
