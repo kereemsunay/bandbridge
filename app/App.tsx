@@ -7,6 +7,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { BandClient } from "./src/ble";
 import { Health } from "./src/health";
 import { hasMusicAccess, sendMusic, openMusicSettings } from "./src/music";
+import { getNotifications, clearNotifications, AppNotification } from "./src/notifications";
 import { Decoded, CALORIES_PER_KCAL } from "./src/protocol";
 
 const C = {
@@ -63,6 +64,7 @@ function Screen() {
   const [temp, setTemp] = useState<number | null>(null);
   const [workouts, setWorkouts] = useState(0);
   const [musicOK, setMusicOK] = useState(false);
+  const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,9 +84,26 @@ function Screen() {
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", async (state) => {
-      if (state === "active") setMusicOK(await hasMusicAccess());
+      if (state === "active") {
+        setMusicOK(await hasMusicAccess());
+        setNotifs(await getNotifications());
+      }
     });
     return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      const list = await getNotifications();
+      if (alive) setNotifs(list);
+    };
+    tick();
+    const id = setInterval(tick, 3000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
@@ -351,6 +370,39 @@ function Screen() {
         )}
 
         <View style={s.logHead}>
+          <Text style={s.label}>BİLDİRİM</Text>
+          {notifs.length > 0 && (
+            <Pressable
+              onPress={() => {
+                clearNotifications();
+                setNotifs([]);
+              }}
+              hitSlop={10}
+            >
+              <Text style={s.footLink}>temizle</Text>
+            </Pressable>
+          )}
+        </View>
+        <View>
+          {!musicOK ? (
+            <Text style={s.logEmpty}>Bildirim erişimi yok. "izin ver" ile aç.</Text>
+          ) : notifs.length === 0 ? (
+            <Text style={s.logEmpty}>Henüz bildirim yok.</Text>
+          ) : (
+            notifs.slice(0, 6).map((n) => (
+              <View key={n.key} style={s.notifRow}>
+                <Text style={s.logTime}>{clock(new Date(n.time))}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.notifApp}>{n.app.toUpperCase()}</Text>
+                  <Text style={s.notifTitle} numberOfLines={1}>{n.title}</Text>
+                  {!!n.text && <Text style={s.notifText} numberOfLines={2}>{n.text}</Text>}
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={s.logHead}>
           <Text style={s.label}>KAYIT</Text>
         </View>
         <View>
@@ -511,7 +563,14 @@ const s = StyleSheet.create({
   footLink: { fontSize: 11, color: C.muted, textDecorationLine: "underline" },
   error: { marginTop: 10, fontSize: 11, color: C.red, letterSpacing: 0.4 },
   subHead: { marginTop: 26, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink },
-  logHead: { marginTop: 32, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink },
+  logHead: { marginTop: 32, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink, flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  notifRow: {
+    flexDirection: "row", alignItems: "flex-start", paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.rule,
+  },
+  notifApp: { fontSize: 8.5, letterSpacing: 1.3, fontWeight: "700", color: C.green, marginBottom: 2 },
+  notifTitle: { fontSize: 12.5, fontWeight: "600", color: C.ink },
+  notifText: { fontSize: 11, color: C.muted, lineHeight: 15, marginTop: 1 },
   logRow: { flexDirection: "row", alignItems: "baseline", paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.rule },
   logTime: { fontFamily: MONO, fontSize: 10, color: C.muted, width: 52 },
   logMsg: { fontFamily: MONO, fontSize: 10, color: C.ink, flex: 1 },

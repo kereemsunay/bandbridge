@@ -24,6 +24,7 @@ No HryFine, no ads, no account, no cloud.
 | SpO2 (`key 14`), blood pressure (`key 05`), temperature (`key 13`) | parser + Health Connect write |
 | Workouts (`key 16`) | parser + ExerciseSession write |
 | Battery level | ✅ header |
+| In-app notification feed | ✅ notification listener |
 | Media button events (`0C`) | ✅ controls the phone's active media session |
 | iOS HealthKit app | ✅ builds (needs signing team) |
 | React Native Android app + Health Connect | ✅ APK builds |

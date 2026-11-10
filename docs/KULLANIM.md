@@ -77,6 +77,16 @@ Yapılabilir:
 - Müzik kontrolü: banttaki müzik ekranında tuşa basınca telefonun aktif
   oynatıcısına sonraki / önceki / oynat-duraklat gönderilir.
 
+### Uygulama içi bildirimler
+
+Aynı bildirim erişimiyle telefon bildirimleri uygulamada listelenir:
+
+1. **"izin ver"** → BandBridge bildirim erişimini aç.
+2. Ana ekranda **BİLDİRİM** bölümü son 6 bildirimi gösterir
+   (saat, uygulama, başlık, metin).
+3. **temizle** listeyi boşaltır.
+4. Bildirimler yalnızca cihazda tutulur; saate otomatik gönderilmez.
+
 ### Müzik kontrolünü açma
 
 1. Uygulamada **"izin ver"** bağlantısına bas (veya Android Ayarlar →

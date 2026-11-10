@@ -10,6 +10,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import org.json.JSONArray
 
 class MusicControlModule(private val ctx: ReactApplicationContext) :
     ReactContextBaseJavaModule(ctx) {
@@ -74,6 +75,20 @@ class MusicControlModule(private val ctx: ReactApplicationContext) :
         } catch (e: Exception) {
             promise.reject("music_control", e.message, e)
         }
+    }
+
+    @ReactMethod
+    fun getNotifications(promise: Promise) {
+        val arr = JSONArray()
+        synchronized(MediaListenerService.store) {
+            MediaListenerService.store.values.forEach { arr.put(it) }
+        }
+        promise.resolve(arr.toString())
+    }
+
+    @ReactMethod
+    fun clearNotifications() {
+        synchronized(MediaListenerService.store) { MediaListenerService.store.clear() }
     }
 
     @ReactMethod
