@@ -8,6 +8,7 @@ import { BandClient } from "./src/ble";
 import { Health } from "./src/health";
 import { hasMusicAccess, sendMusic, openMusicSettings } from "./src/music";
 import { getNotifications, clearNotifications, AppNotification } from "./src/notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Decoded, CALORIES_PER_KCAL } from "./src/protocol";
 
 const C = {
@@ -64,7 +65,9 @@ function Screen() {
   const [temp, setTemp] = useState<number | null>(null);
   const [workouts, setWorkouts] = useState(0);
   const [musicOK, setMusicOK] = useState(false);
+  const [musicEnabled, setMusicEnabled] = useState(true);
   const musicRef = useRef(false);
+  const musicEnabledRef = useRef(true);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -82,6 +85,23 @@ function Screen() {
     const id = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem("music.enabled").then((v) => {
+      if (v === "0") {
+        setMusicEnabled(false);
+        musicEnabledRef.current = false;
+      }
+    });
+  }, []);
+
+  const toggleMusic = () => {
+    const next = !musicEnabled;
+    setMusicEnabled(next);
+    musicEnabledRef.current = next;
+    AsyncStorage.setItem("music.enabled", next ? "1" : "0");
+    log(next ? "müzik kontrolü açıldı" : "müzik kontrolü kapatıldı");
+  };
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", async (state) => {
@@ -188,7 +208,9 @@ function Screen() {
             d.key === 0x0a || d.key === 0x0b ? "playpause" : null;
           const label = action === "next" ? "sonraki" : action === "prev" ? "önceki" : "oynat/duraklat";
           if (action) {
-            if (musicRef.current) {
+            if (!musicEnabledRef.current) {
+              log("müzik: kapalı");
+            } else if (musicRef.current) {
               const ok = await sendMusic(action);
               log(`müzik: ${label} ${ok ? "gönderildi" : "aktif oynatıcı yok"}`);
             } else {
@@ -346,12 +368,16 @@ function Screen() {
         </View>
 
         <View style={s.musicRow}>
-          <Text style={[s.foot, { color: musicOK ? C.green : C.muted }]}>
-            MÜZİK KONTROLÜ · {musicOK ? "AÇIK" : "İZİN YOK"}
+          <Text style={[s.foot, { color: !musicOK ? C.red : musicEnabled ? C.green : C.muted }]}>
+            MÜZİK KONTROLÜ · {!musicOK ? "İZİN YOK" : musicEnabled ? "AÇIK" : "KAPALI"}
           </Text>
-          {!musicOK && (
+          {!musicOK ? (
             <Pressable onPress={openMusicSettings} hitSlop={10}>
               <Text style={s.footLink}>izin ver</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={toggleMusic} hitSlop={10}>
+              <Text style={s.footLink}>{musicEnabled ? "kapat" : "aç"}</Text>
             </Pressable>
           )}
         </View>

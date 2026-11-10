@@ -97,6 +97,10 @@ Aynı bildirim erişimiyle telefon bildirimleri uygulamada listelenir:
 
 Aktif oynatıcı yoksa kayıt satırında "aktif oynatıcı yok" yazar.
 
+Müzik kontrolünü tamamen kapatmak için satırdaki **kapat** bağlantısına bas.
+Durum **KAPALI** olur, bant tuşları yok sayılır; **aç** ile geri gelir. Seçim
+uygulama kapanınca da hatırlanır.
+
 Yapılamaz:
 - Menü, widget, yeni ekran eklemek (firmware kapalı).
 - Firmware yazmak (imaj yok, brick riski).
