@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated, AppState, Easing, Modal, PermissionsAndroid, Platform, Pressable,
   ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View,
@@ -23,7 +23,7 @@ const C = {
 
 const MONO = Platform.OS === "ios" ? "Menlo" : "monospace";
 
-type Log = { t: string; msg: string };
+type Log = { ts: number; msg: string };
 type Phase = "idle" | "scanning" | "connecting" | "syncing" | "connected";
 
 const fmt = (n: number) => n.toLocaleString("tr-TR");
@@ -68,7 +68,10 @@ function Screen() {
   const [musicEnabled, setMusicEnabled] = useState(true);
   const musicRef = useRef(false);
   const musicEnabledRef = useRef(true);
+  const batteryRef = useRef<number | null>(null);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
+  const [history, setHistory] = useState(false);
+  const [dayIdx, setDayIdx] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,14 +80,57 @@ function Screen() {
   const stampAnim = useRef(new Animated.Value(0)).current;
 
   const log = (msg: string) => {
-    const t = clock(new Date());
-    setLogs((prev) => [...prev.slice(-5), { t, msg }]);
+    setLogs((prev) => [...prev.slice(-499), { ts: Date.now(), msg }]);
   };
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem("logs").then((v) => {
+      if (!v) return;
+      try {
+        const parsed = JSON.parse(v);
+        if (Array.isArray(parsed)) setLogs(parsed.slice(-500));
+      } catch {}
+    });
+  }, []);
+
+  useEffect(() => {
+    if (logs.length > 0) AsyncStorage.setItem("logs", JSON.stringify(logs.slice(-500)));
+  }, [logs]);
+
+  const dayGroups = useMemo(() => {
+    const m = new Map<number, Log[]>();
+    logs.forEach((l) => {
+      const k = new Date(l.ts).setHours(0, 0, 0, 0);
+      const arr = m.get(k) ?? [];
+      arr.push(l);
+      m.set(k, arr);
+    });
+    return Array.from(m.entries()).sort((a, b) => b[0] - a[0]);
+  }, [logs]);
+
+  useEffect(() => {
+    if (dayIdx >= dayGroups.length) setDayIdx(0);
+  }, [dayGroups.length, dayIdx]);
+
+  const currentDay = dayGroups[dayIdx];
+  const hourGroups = useMemo(() => {
+    if (!currentDay) return [] as { hour: number; items: Log[] }[];
+    const m = new Map<number, Log[]>();
+    [...currentDay[1]].sort((a, b) => b.ts - a.ts).forEach((l) => {
+      const h = new Date(l.ts).setHours(new Date(l.ts).getHours(), 0, 0, 0);
+      const arr = m.get(h) ?? [];
+      arr.push(l);
+      m.set(h, arr);
+    });
+    return Array.from(m.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([hour, items]) => ({ hour, items }));
+  }, [currentDay]);
 
   useEffect(() => {
     AsyncStorage.getItem("music.enabled").then((v) => {
@@ -162,7 +208,10 @@ function Screen() {
       client.onBattery = (level) => {
         if (!alive) return;
         setBattery(level);
-        log(`batarya %${level}`);
+        if (batteryRef.current !== level) {
+          batteryRef.current = level;
+          log(`batarya %${level}`);
+        }
       };
 
       client.onStatus = (text, conn) => {
@@ -268,6 +317,9 @@ function Screen() {
       ? ""
       : status;
 
+  const syncingNow = syncing || phase === "syncing";
+  const showAction = !connected || (!lastSync && !syncingNow);
+
   const stampStyle = {
     opacity: stampAnim,
     transform: [
@@ -328,34 +380,40 @@ function Screen() {
           />
         </View>
 
-        <Pressable
-          onPress={onSync}
-          disabled={syncing}
-          accessibilityRole="button"
-          accessibilityLabel={connected ? "Senkronize et" : "Bağlan"}
-          style={({ pressed }) => [
-            s.button,
-            { backgroundColor: syncing ? C.muted : pressed ? "#24332B" : C.ink },
-          ]}
-        >
-          <Text style={s.buttonText}>
-            {syncing || phase === "syncing"
-              ? "SENKRONİZE EDİLİYOR"
-              : connected
-              ? "SENKRONİZE ET"
-              : phase === "scanning"
-              ? "ARANIYOR…"
-              : phase === "connecting"
-              ? "BAĞLANIYOR…"
-              : "BAĞLAN"}
-          </Text>
-        </Pressable>
+        {showAction && (
+          <Pressable
+            onPress={onSync}
+            accessibilityRole="button"
+            accessibilityLabel={connected ? "Senkronize et" : "Bağlan"}
+            style={({ pressed }) => [
+              s.button,
+              { backgroundColor: pressed ? "#24332B" : C.ink },
+            ]}
+          >
+            <Text style={s.buttonText}>
+              {!connected
+                ? phase === "scanning"
+                  ? "ARANIYOR…"
+                  : phase === "connecting"
+                  ? "BAĞLANIYOR…"
+                  : "BAĞLAN"
+                : error
+                ? "TEKRAR DENE"
+                : "SENKRONİZE ET"}
+            </Text>
+          </Pressable>
+        )}
 
-        <View style={s.footRow}>
+        <View style={s.footBlock}>
           <Text style={[s.foot, { color: healthOK ? C.green : C.red }]}>
             HEALTH CONNECT · {healthOK ? "AÇIK" : "İZİN YOK"}
           </Text>
           <View style={s.footLinks}>
+            {connected && lastSync && (
+              <Pressable onPress={onSync} hitSlop={10}>
+                <Text style={s.footLink}>yeniden senkron</Text>
+              </Pressable>
+            )}
             {connected && (
               <Pressable onPress={() => client.disconnect()} hitSlop={10}>
                 <Text style={s.footLink}>bağlantıyı kes</Text>
@@ -368,18 +426,29 @@ function Screen() {
         </View>
 
         <View style={s.musicRow}>
-          <Text style={[s.foot, { color: !musicOK ? C.red : musicEnabled ? C.green : C.muted }]}>
-            MÜZİK KONTROLÜ · {!musicOK ? "İZİN YOK" : musicEnabled ? "AÇIK" : "KAPALI"}
-          </Text>
-          {!musicOK ? (
-            <Pressable onPress={openMusicSettings} hitSlop={10}>
-              <Text style={s.footLink}>izin ver</Text>
-            </Pressable>
-          ) : (
-            <Pressable onPress={toggleMusic} hitSlop={10}>
-              <Text style={s.footLink}>{musicEnabled ? "kapat" : "aç"}</Text>
-            </Pressable>
-          )}
+          <Text style={s.foot}>MÜZİK KONTROLÜ</Text>
+          <Pressable
+            onPress={!musicOK ? openMusicSettings : toggleMusic}
+            style={[
+              s.musicBtn,
+              { borderColor: !musicOK ? C.red : musicEnabled ? C.green : C.muted },
+            ]}
+          >
+            <View
+              style={[
+                s.musicDot,
+                { backgroundColor: !musicOK ? C.red : musicEnabled ? C.green : C.muted },
+              ]}
+            />
+            <Text
+              style={[
+                s.musicBtnText,
+                { color: !musicOK ? C.red : musicEnabled ? C.green : C.muted },
+              ]}
+            >
+              {!musicOK ? "İZİN VER" : musicEnabled ? "AÇIK" : "KAPALI"}
+            </Text>
+          </Pressable>
         </View>
 
         {error && <Text style={s.error}>{error}</Text>}
@@ -435,14 +504,19 @@ function Screen() {
 
         <View style={s.logHead}>
           <Text style={s.label}>KAYIT</Text>
+          {logs.length > 0 && (
+            <Pressable onPress={() => setHistory(true)} hitSlop={10}>
+              <Text style={s.footLink}>tümü · {logs.length}</Text>
+            </Pressable>
+          )}
         </View>
         <View>
           {logs.length === 0 ? (
             <Text style={s.logEmpty}>Henüz kayıt yok. Saatini bağla.</Text>
           ) : (
-            logs.map((l, i) => (
-              <View key={`${l.t}-${i}`} style={s.logRow}>
-                <Text style={s.logTime}>{l.t}</Text>
+            logs.slice(-3).map((l) => (
+              <View key={l.ts} style={s.logRow}>
+                <Text style={s.logTime}>{clock(new Date(l.ts))}</Text>
                 <Text style={s.logMsg} numberOfLines={1}>{l.msg}</Text>
               </View>
             ))
@@ -479,6 +553,73 @@ function Screen() {
             <Steps />
             <Pressable onPress={() => setHelp(false)} style={s.panelBtn}>
               <Text style={s.panelBtnText}>TAMAM</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={history} animationType="slide" onRequestClose={() => setHistory(false)}>
+        <View style={[s.history, { paddingTop: insets.top + 14 }]}>
+          <View style={s.historyTop}>
+            <Text style={s.wordmarkDark}>KAYIT</Text>
+            <Pressable onPress={() => setHistory(false)} hitSlop={10}>
+              <Text style={s.footLink}>kapat</Text>
+            </Pressable>
+          </View>
+          <View style={s.dayNav}>
+            <Pressable
+              onPress={() => setDayIdx((i) => Math.min(i + 1, dayGroups.length - 1))}
+              disabled={dayIdx >= dayGroups.length - 1}
+            >
+              <Text style={[s.dayLink, dayIdx >= dayGroups.length - 1 && { opacity: 0.3 }]}>
+                ‹ önceki
+              </Text>
+            </Pressable>
+            <Text style={s.dayLabel}>
+              {currentDay
+                ? new Date(currentDay[0])
+                    .toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })
+                    .toUpperCase()
+                : "KAYIT YOK"}
+            </Text>
+            <Pressable
+              onPress={() => setDayIdx((i) => Math.max(i - 1, 0))}
+              disabled={dayIdx === 0}
+            >
+              <Text style={[s.dayLink, dayIdx === 0 && { opacity: 0.3 }]}>sonraki ›</Text>
+            </Pressable>
+          </View>
+          <View style={s.ruleStrong} />
+          <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+            {hourGroups.length === 0 ? (
+              <Text style={s.logEmpty}>Bu gün için kayıt yok.</Text>
+            ) : (
+              hourGroups.map((g) => (
+                <View key={g.hour}>
+                  <Text style={s.hourLabel}>
+                    {String(new Date(g.hour).getHours()).padStart(2, "0")}:00
+                  </Text>
+                  {g.items.map((l) => (
+                    <View key={l.ts} style={s.logRow}>
+                      <Text style={s.logTime}>{clock(new Date(l.ts))}</Text>
+                      <Text style={s.logMsg}>{l.msg}</Text>
+                    </View>
+                  ))}
+                </View>
+              ))
+            )}
+          </ScrollView>
+          <View style={s.historyFoot}>
+            <Text style={s.foot}>{logs.length} kayıt</Text>
+            <Pressable
+              onPress={() => {
+                setLogs([]);
+                AsyncStorage.removeItem("logs");
+                setHistory(false);
+              }}
+              hitSlop={10}
+            >
+              <Text style={s.footLink}>temizle</Text>
             </Pressable>
           </View>
         </View>
@@ -587,10 +728,17 @@ const s = StyleSheet.create({
   rowValue: { fontFamily: MONO, fontSize: 21, color: C.ink, maxWidth: "62%" },
   button: { marginTop: 28, height: 54, alignItems: "center", justifyContent: "center" },
   buttonText: { color: C.paper, fontSize: 12, letterSpacing: 1.6, fontWeight: "800" },
+  footBlock: { marginTop: 12, gap: 6 },
   footRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12, alignItems: "center" },
   foot: { fontSize: 9.5, letterSpacing: 1.2, fontWeight: "700" },
-  footLinks: { flexDirection: "row", gap: 14 },
-  musicRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8, alignItems: "center" },
+  footLinks: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
+  musicRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 10, alignItems: "center" },
+  musicBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    borderWidth: 1.5, paddingHorizontal: 10, paddingVertical: 6,
+  },
+  musicDot: { width: 6, height: 6, borderRadius: 3 },
+  musicBtnText: { fontSize: 9.5, letterSpacing: 1.4, fontWeight: "800" },
   footLink: { fontSize: 11, color: C.muted, textDecorationLine: "underline" },
   error: { marginTop: 10, fontSize: 11, color: C.red, letterSpacing: 0.4 },
   subHead: { marginTop: 26, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink },
@@ -606,6 +754,15 @@ const s = StyleSheet.create({
   logTime: { fontFamily: MONO, fontSize: 10, color: C.muted, width: 52 },
   logMsg: { fontFamily: MONO, fontSize: 10, color: C.ink, flex: 1 },
   logEmpty: { fontFamily: MONO, fontSize: 10.5, color: C.muted, paddingVertical: 12 },
+  history: { flex: 1, backgroundColor: C.ground, paddingHorizontal: 22 },
+  ruleStrong: { height: 1.5, backgroundColor: C.ink },
+  historyTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  wordmarkDark: { fontSize: 11, letterSpacing: 2.6, fontWeight: "700", color: C.ink },
+  dayNav: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginTop: 18, marginBottom: 10 },
+  dayLink: { fontSize: 11, color: C.muted, textDecorationLine: "underline" },
+  dayLabel: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, color: C.ink },
+  hourLabel: { fontFamily: MONO, fontSize: 9.5, color: C.muted, letterSpacing: 1, marginTop: 18, marginBottom: 2 },
+  historyFoot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderTopWidth: 1.5, borderTopColor: C.ink },
   backdrop: { flex: 1, backgroundColor: "rgba(18,24,20,0.5)", justifyContent: "flex-end" },
   sheetPanel: {
     backgroundColor: C.ground, paddingHorizontal: 22, paddingTop: 22,

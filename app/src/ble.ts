@@ -61,7 +61,21 @@ export class BandClient {
 
   private async connect(dev: Device) {
     this.onStatus?.("Bağlanıyor…", false);
-    const d = await dev.connect();
+    let d = dev;
+    try {
+      if (await d.isConnected()) await d.cancelConnection();
+      d = await d.connect();
+    } catch (e: any) {
+      if (String(e?.message ?? "").toLowerCase().includes("already")) {
+        try {
+          await dev.cancelConnection();
+          await this.sleep(500);
+        } catch {}
+        d = await dev.connect();
+      } else {
+        throw e;
+      }
+    }
     await d.discoverAllServicesAndCharacteristics();
     this.device = d;
     this.connected = true;

@@ -38,13 +38,20 @@ Uygulama içinde de aynı yönerge var: ana ekranda **"nasıl bağlanır?"**.
 ## 3. Günlük kullanım
 
 1. Uygulamayı aç; saat otomatik bağlanır ve senkron başlar.
-2. Senkron başında ve sonunda saat kısa titreşir.
+2. Senkron başında ve sonunda saat kısa titreşir. Butona basman gerekmez;
+   açılışta otomatik çalışır. Büyük buton yalnızca bağlantı yokken veya veri
+   gelmediğinde görünür.
 3. Ekranda **SENKRON** damgası ve saat görünür.
 4. Değerler Health Connect'e yazılır; Sağlık uygulamasında görünür.
    Üst şeritte saatin şarjı görünür.
 5. İşin bitince uygulamayı kapatabilirsin; tekrar açtığında yeniden bağlanır.
 
-Elle senkron için **SENKRONİZE ET**. Bağlantıyı kesmek için **bağlantıyı kes**.
+Elle senkron için **yeniden senkron** bağlantısı. Bağlantıyı kesmek için
+**bağlantıyı kes**.
+
+**KAYIT** bölümü son 3 olayı gösterir; **tümü** ile günlük gruplu geçmiş açılır.
+Kayıtlar cihazda saklanır (en fazla 500), günler arasında `önceki / sonraki` ile
+gezinilir, **temizle** hepsini siler.
 
 ## 4. Veriler ve gecikmeler
 
