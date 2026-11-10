@@ -64,6 +64,7 @@ function Screen() {
   const [temp, setTemp] = useState<number | null>(null);
   const [workouts, setWorkouts] = useState(0);
   const [musicOK, setMusicOK] = useState(false);
+  const musicRef = useRef(false);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -85,7 +86,9 @@ function Screen() {
   useEffect(() => {
     const sub = AppState.addEventListener("change", async (state) => {
       if (state === "active") {
-        setMusicOK(await hasMusicAccess());
+        const music = await hasMusicAccess();
+      musicRef.current = music;
+      setMusicOK(music);
         setNotifs(await getNotifications());
       }
     });
@@ -132,7 +135,9 @@ function Screen() {
       const hc = await Health.init();
       if (!alive) return;
       setHealthOK(hc);
-      setMusicOK(await hasMusicAccess());
+      const music = await hasMusicAccess();
+      musicRef.current = music;
+      setMusicOK(music);
 
       client.onBattery = (level) => {
         if (!alive) return;
@@ -183,7 +188,7 @@ function Screen() {
             d.key === 0x0a || d.key === 0x0b ? "playpause" : null;
           const label = action === "next" ? "sonraki" : action === "prev" ? "önceki" : "oynat/duraklat";
           if (action) {
-            if (musicOK) {
+            if (musicRef.current) {
               const ok = await sendMusic(action);
               log(`müzik: ${label} ${ok ? "gönderildi" : "aktif oynatıcı yok"}`);
             } else {
