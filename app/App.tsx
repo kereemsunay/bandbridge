@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated, AppState, Easing, Modal, PermissionsAndroid, Platform, Pressable,
-  ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View,
+  ScrollView, StatusBar, StyleSheet, Text, useColorScheme, useWindowDimensions, View,
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BandClient } from "./src/ble";
@@ -11,15 +11,78 @@ import { getNotifications, clearNotifications, AppNotification } from "./src/not
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Decoded, CALORIES_PER_KCAL } from "./src/protocol";
 
-const C = {
+type Palette = {
+  ground: string;
+  ink: string;
+  muted: string;
+  rule: string;
+  cover: string;
+  green: string;
+  paper: string;
+  red: string;
+  action: string;
+  actionText: string;
+};
+
+const light: Palette = {
   ground: "#E7EBE2",
   ink: "#121814",
   muted: "#5A645C",
   rule: "#C3CABF",
+  cover: "#125B3B",
   green: "#125B3B",
   paper: "#F3F5EC",
   red: "#9E3527",
+  action: "#121814",
+  actionText: "#F3F5EC",
 };
+
+const dark: Palette = {
+  ground: "#0C1210",
+  ink: "#EEF2E8",
+  muted: "#97A199",
+  rule: "#26312B",
+  cover: "#174D36",
+  green: "#56B98A",
+  paper: "#F1F4EA",
+  red: "#E07A66",
+  action: "#2E8B60",
+  actionText: "#07130C",
+};
+
+type Styles = ReturnType<typeof makeStyles>;
+
+const ThemeCtx = createContext<{
+  c: Palette;
+  s: Styles;
+  mode: "light" | "dark";
+  toggle: () => void;
+}>({ c: light, s: makeStyles(light), mode: "light", toggle: () => {} });
+
+const useTheme = () => useContext(ThemeCtx);
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const scheme = useColorScheme();
+  const [override, setOverride] = useState<"light" | "dark" | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem("theme").then((v) => {
+      if (v === "light" || v === "dark") setOverride(v);
+    });
+  }, []);
+
+  const mode = override ?? (scheme === "dark" ? "dark" : "light");
+  const c = mode === "dark" ? dark : light;
+  const s = useMemo(() => makeStyles(c), [mode]);
+
+  const toggle = () => {
+    const next = mode === "dark" ? "light" : "dark";
+    setOverride(next);
+    AsyncStorage.setItem("theme", next);
+  };
+
+  return <ThemeCtx.Provider value={{ c, s, mode, toggle }}>{children}</ThemeCtx.Provider>;
+}
 
 const MONO = Platform.OS === "ios" ? "Menlo" : "monospace";
 
@@ -45,6 +108,7 @@ const phaseOf = (text: string, connected: boolean): Phase => {
 };
 
 function Screen() {
+  const { c: C, s, mode, toggle } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const client = useRef(new BandClient()).current;
@@ -387,7 +451,7 @@ function Screen() {
             accessibilityLabel={connected ? "Senkronize et" : "Bağlan"}
             style={({ pressed }) => [
               s.button,
-              { backgroundColor: pressed ? "#24332B" : C.ink },
+              { backgroundColor: C.action, opacity: pressed ? 0.85 : 1 },
             ]}
           >
             <Text style={s.buttonText}>
@@ -419,6 +483,9 @@ function Screen() {
                 <Text style={s.footLink}>bağlantıyı kes</Text>
               </Pressable>
             )}
+            <Pressable onPress={toggle} hitSlop={10}>
+              <Text style={s.footLink}>{mode === "dark" ? "gündüz" : "gece modu"}</Text>
+            </Pressable>
             <Pressable onPress={() => setHelp(true)} hitSlop={10}>
               <Text style={s.footLink}>nasıl bağlanır?</Text>
             </Pressable>
@@ -426,7 +493,7 @@ function Screen() {
         </View>
 
         <View style={s.musicRow}>
-          <Text style={s.foot}>MÜZİK KONTROLÜ</Text>
+          <Text style={[s.foot, { color: C.ink }]}>MÜZİK KONTROLÜ</Text>
           <Pressable
             onPress={!musicOK ? openMusicSettings : toggleMusic}
             style={[
@@ -631,12 +698,15 @@ function Screen() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <Screen />
+      <ThemeProvider>
+        <Screen />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
 function Steps() {
+  const { s } = useTheme();
   const items = [
     "Saatin ekranına dokun, ana kadrana dön.",
     "Telefonda Bluetooth açık; HryFine kapalı olsun.",
@@ -659,6 +729,7 @@ function Steps() {
 }
 
 function ProgressLine({ width, dark = false }: { width: number; dark?: boolean }) {
+  const { c: C, s } = useTheme();
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -691,6 +762,7 @@ function ProgressLine({ width, dark = false }: { width: number; dark?: boolean }
 }
 
 function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  const { s } = useTheme();
   return (
     <View style={[s.row, !last && s.rowRule]}>
       <Text style={s.rowLabel}>{label.toUpperCase()}</Text>
@@ -699,35 +771,36 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.ground },
-  cover: { backgroundColor: C.green, paddingHorizontal: 22, paddingBottom: 22, overflow: "hidden" },
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.ground },
+  cover: { backgroundColor: c.cover, paddingHorizontal: 22, paddingBottom: 22, overflow: "hidden" },
   coverInner: { maxWidth: 560, width: "100%", alignSelf: "center" },
   topline: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  wordmark: { fontSize: 11, letterSpacing: 2.6, fontWeight: "700", color: C.paper },
+  wordmark: { fontSize: 11, letterSpacing: 2.6, fontWeight: "700", color: c.paper },
   clock: { fontFamily: MONO, fontSize: 11, color: "rgba(243,245,236,0.72)" },
   coverRule: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(243,245,236,0.38)", marginTop: 9 },
-  date: { fontSize: 26, fontWeight: "800", letterSpacing: -0.6, color: C.paper, marginTop: 14 },
+  date: { fontSize: 26, fontWeight: "800", letterSpacing: -0.6, color: c.paper, marginTop: 14 },
   statusRow: { flexDirection: "row", alignItems: "center", marginTop: 9 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
-  statusWord: { fontSize: 10, letterSpacing: 1.7, fontWeight: "700", color: C.paper },
+  statusWord: { fontSize: 10, letterSpacing: 1.7, fontWeight: "700", color: c.paper },
   statusDetail: { fontFamily: MONO, fontSize: 10, color: "rgba(243,245,236,0.7)", marginLeft: 10, flexShrink: 1 },
   battery: { fontFamily: MONO, fontSize: 10, color: "rgba(243,245,236,0.85)" },
   progress: { position: "absolute", left: 0, right: 0, bottom: 0, height: 2, overflow: "hidden" },
   sheet: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 36, maxWidth: 560, width: "100%", alignSelf: "center" },
   sectionHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 46 },
-  label: { fontSize: 10, letterSpacing: 2, fontWeight: "700", color: C.muted },
-  pending: { fontSize: 9, letterSpacing: 1.4, fontWeight: "700", color: C.muted },
-  stamp: { borderWidth: 1.5, borderColor: C.green, paddingVertical: 4, paddingHorizontal: 9, alignItems: "center" },
-  stampMain: { fontSize: 9.5, letterSpacing: 1.8, fontWeight: "800", color: C.green },
-  stampSub: { fontFamily: MONO, fontSize: 8.5, color: C.green, marginTop: 1 },
+  label: { fontSize: 10, letterSpacing: 2, fontWeight: "700", color: c.muted },
+  pending: { fontSize: 9, letterSpacing: 1.4, fontWeight: "700", color: c.muted },
+  stamp: { borderWidth: 1.5, borderColor: c.green, paddingVertical: 4, paddingHorizontal: 9, alignItems: "center" },
+  stampMain: { fontSize: 9.5, letterSpacing: 1.8, fontWeight: "800", color: c.green },
+  stampSub: { fontFamily: MONO, fontSize: 8.5, color: c.green, marginTop: 1 },
   table: { marginTop: 4 },
   row: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingVertical: 12 },
-  rowRule: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.rule },
-  rowLabel: { fontSize: 10.5, letterSpacing: 1.5, fontWeight: "600", color: C.muted },
-  rowValue: { fontFamily: MONO, fontSize: 21, color: C.ink, maxWidth: "62%" },
+  rowRule: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.rule },
+  rowLabel: { fontSize: 10.5, letterSpacing: 1.5, fontWeight: "600", color: c.muted },
+  rowValue: { fontFamily: MONO, fontSize: 21, color: c.ink, maxWidth: "62%" },
   button: { marginTop: 28, height: 54, alignItems: "center", justifyContent: "center" },
-  buttonText: { color: C.paper, fontSize: 12, letterSpacing: 1.6, fontWeight: "800" },
+  buttonText: { color: c.actionText, fontSize: 12, letterSpacing: 1.6, fontWeight: "800" },
   footBlock: { marginTop: 12, gap: 6 },
   footRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12, alignItems: "center" },
   foot: { fontSize: 9.5, letterSpacing: 1.2, fontWeight: "700" },
@@ -739,47 +812,48 @@ const s = StyleSheet.create({
   },
   musicDot: { width: 6, height: 6, borderRadius: 3 },
   musicBtnText: { fontSize: 9.5, letterSpacing: 1.4, fontWeight: "800" },
-  footLink: { fontSize: 11, color: C.muted, textDecorationLine: "underline" },
-  error: { marginTop: 10, fontSize: 11, color: C.red, letterSpacing: 0.4 },
-  subHead: { marginTop: 26, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink },
-  logHead: { marginTop: 32, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: C.ink, flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  footLink: { fontSize: 11, color: c.muted, textDecorationLine: "underline" },
+  error: { marginTop: 10, fontSize: 11, color: c.red, letterSpacing: 0.4 },
+  subHead: { marginTop: 26, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: c.ink },
+  logHead: { marginTop: 32, paddingBottom: 8, borderBottomWidth: 1.5, borderBottomColor: c.ink, flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   notifRow: {
     flexDirection: "row", alignItems: "flex-start", paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.rule,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.rule,
   },
-  notifApp: { fontSize: 8.5, letterSpacing: 1.3, fontWeight: "700", color: C.green, marginBottom: 2 },
-  notifTitle: { fontSize: 12.5, fontWeight: "600", color: C.ink },
-  notifText: { fontSize: 11, color: C.muted, lineHeight: 15, marginTop: 1 },
-  logRow: { flexDirection: "row", alignItems: "baseline", paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.rule },
-  logTime: { fontFamily: MONO, fontSize: 10, color: C.muted, width: 52 },
-  logMsg: { fontFamily: MONO, fontSize: 10, color: C.ink, flex: 1 },
-  logEmpty: { fontFamily: MONO, fontSize: 10.5, color: C.muted, paddingVertical: 12 },
-  history: { flex: 1, backgroundColor: C.ground, paddingHorizontal: 22 },
-  ruleStrong: { height: 1.5, backgroundColor: C.ink },
+  notifApp: { fontSize: 8.5, letterSpacing: 1.3, fontWeight: "700", color: c.green, marginBottom: 2 },
+  notifTitle: { fontSize: 12.5, fontWeight: "600", color: c.ink },
+  notifText: { fontSize: 11, color: c.muted, lineHeight: 15, marginTop: 1 },
+  logRow: { flexDirection: "row", alignItems: "baseline", paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.rule },
+  logTime: { fontFamily: MONO, fontSize: 10, color: c.muted, width: 52 },
+  logMsg: { fontFamily: MONO, fontSize: 10, color: c.ink, flex: 1 },
+  logEmpty: { fontFamily: MONO, fontSize: 10.5, color: c.muted, paddingVertical: 12 },
+  history: { flex: 1, backgroundColor: c.ground, paddingHorizontal: 22 },
+  ruleStrong: { height: 1.5, backgroundColor: c.ink },
   historyTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  wordmarkDark: { fontSize: 11, letterSpacing: 2.6, fontWeight: "700", color: C.ink },
+  wordmarkDark: { fontSize: 11, letterSpacing: 2.6, fontWeight: "700", color: c.ink },
   dayNav: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginTop: 18, marginBottom: 10 },
-  dayLink: { fontSize: 11, color: C.muted, textDecorationLine: "underline" },
-  dayLabel: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, color: C.ink },
-  hourLabel: { fontFamily: MONO, fontSize: 9.5, color: C.muted, letterSpacing: 1, marginTop: 18, marginBottom: 2 },
-  historyFoot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderTopWidth: 1.5, borderTopColor: C.ink },
+  dayLink: { fontSize: 11, color: c.muted, textDecorationLine: "underline" },
+  dayLabel: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, color: c.ink },
+  hourLabel: { fontFamily: MONO, fontSize: 9.5, color: c.muted, letterSpacing: 1, marginTop: 18, marginBottom: 2 },
+  historyFoot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderTopWidth: 1.5, borderTopColor: c.ink },
   backdrop: { flex: 1, backgroundColor: "rgba(18,24,20,0.5)", justifyContent: "flex-end" },
   sheetPanel: {
-    backgroundColor: C.ground, paddingHorizontal: 22, paddingTop: 22,
-    borderTopWidth: 3, borderTopColor: C.green,
+    backgroundColor: c.ground, paddingHorizontal: 22, paddingTop: 22,
+    borderTopWidth: 3, borderTopColor: c.green,
   },
-  panelLabel: { fontSize: 9.5, letterSpacing: 2, fontWeight: "700", color: C.muted },
-  panelTitle: { fontSize: 24, fontWeight: "800", letterSpacing: -0.4, color: C.ink, marginTop: 6 },
-  panelBody: { fontSize: 12.5, lineHeight: 19, color: C.muted, marginTop: 8 },
+  panelLabel: { fontSize: 9.5, letterSpacing: 2, fontWeight: "700", color: c.muted },
+  panelTitle: { fontSize: 24, fontWeight: "800", letterSpacing: -0.4, color: c.ink, marginTop: 6 },
+  panelBody: { fontSize: 12.5, lineHeight: 19, color: c.muted, marginTop: 8 },
   panelLine: { marginTop: 14, marginBottom: 6 },
   steps: { marginTop: 10 },
   step: {
     flexDirection: "row", alignItems: "flex-start", paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.rule,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.rule,
   },
-  stepNo: { fontFamily: MONO, fontSize: 10, color: C.green, width: 28, paddingTop: 2 },
-  stepText: { fontSize: 13, lineHeight: 19, color: C.ink, flex: 1 },
-  stepNote: { fontSize: 11, lineHeight: 17, color: C.muted, marginTop: 12 },
-  panelBtn: { marginTop: 18, borderWidth: 1.5, borderColor: C.ink, height: 48, alignItems: "center", justifyContent: "center" },
-  panelBtnText: { fontSize: 11, letterSpacing: 1.8, fontWeight: "800", color: C.ink },
+  stepNo: { fontFamily: MONO, fontSize: 10, color: c.green, width: 28, paddingTop: 2 },
+  stepText: { fontSize: 13, lineHeight: 19, color: c.ink, flex: 1 },
+  stepNote: { fontSize: 11, lineHeight: 17, color: c.muted, marginTop: 12 },
+  panelBtn: { marginTop: 18, borderWidth: 1.5, borderColor: c.ink, height: 48, alignItems: "center", justifyContent: "center" },
+  panelBtnText: { fontSize: 11, letterSpacing: 1.8, fontWeight: "800", color: c.ink },
 });
+}

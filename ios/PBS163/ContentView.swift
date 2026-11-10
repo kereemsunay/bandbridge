@@ -1,13 +1,42 @@
 import SwiftUI
 
-private enum C {
-    static let ground = Color(hex: 0xE7EBE2)
-    static let paper = Color(hex: 0xF3F5EC)
-    static let ink = Color(hex: 0x121814)
-    static let muted = Color(hex: 0x5A645C)
-    static let rule = Color(hex: 0xC3CABF)
-    static let green = Color(hex: 0x125B3B)
-    static let red = Color(hex: 0x9E3527)
+private struct Palette {
+    let ground: Color
+    let paper: Color
+    let ink: Color
+    let muted: Color
+    let rule: Color
+    let cover: Color
+    let green: Color
+    let red: Color
+    let action: Color
+    let actionText: Color
+
+    static let light = Palette(
+        ground: Color(hex: 0xE7EBE2),
+        paper: Color(hex: 0xF3F5EC),
+        ink: Color(hex: 0x121814),
+        muted: Color(hex: 0x5A645C),
+        rule: Color(hex: 0xC3CABF),
+        cover: Color(hex: 0x125B3B),
+        green: Color(hex: 0x125B3B),
+        red: Color(hex: 0x9E3527),
+        action: Color(hex: 0x121814),
+        actionText: Color(hex: 0xF3F5EC)
+    )
+
+    static let dark = Palette(
+        ground: Color(hex: 0x0C1210),
+        paper: Color(hex: 0xF1F4EA),
+        ink: Color(hex: 0xEEF2E8),
+        muted: Color(hex: 0x97A199),
+        rule: Color(hex: 0x26312B),
+        cover: Color(hex: 0x174D36),
+        green: Color(hex: 0x56B98A),
+        red: Color(hex: 0xE07A66),
+        action: Color(hex: 0x2E8B60),
+        actionText: Color(hex: 0x07130C)
+    )
 }
 
 private extension Color {
@@ -23,6 +52,9 @@ private extension Color {
 }
 
 struct ContentView: View {
+    @Environment(\.colorScheme) private var scheme
+    private var C: Palette { scheme == .dark ? .dark : .light }
+
     @StateObject private var band = BandManager()
     @State private var healthOK = false
     @State private var now = Date()
@@ -83,7 +115,6 @@ struct ContentView: View {
                 stampIn = true
             }
         }
-        .preferredColorScheme(.light)
     }
 
     private var cover: some View {
@@ -133,7 +164,7 @@ struct ContentView: View {
         .padding(.bottom, 20)
         .frame(maxWidth: 560)
         .frame(maxWidth: .infinity)
-        .background(C.green.ignoresSafeArea(edges: .top))
+        .background(C.cover.ignoresSafeArea(edges: .top))
     }
 
     private var detail: String {
@@ -213,10 +244,10 @@ struct ContentView: View {
             Text(band.connected ? "SENKRONİZE ET" : "BAĞLAN")
                 .font(.system(size: 12.5, weight: .heavy))
                 .tracking(1.8)
-                .foregroundStyle(C.paper)
+                .foregroundStyle(C.actionText)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(C.ink)
+                .background(C.action)
         }
         .buttonStyle(.plain)
         .padding(.top, 28)
