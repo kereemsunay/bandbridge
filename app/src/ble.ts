@@ -1,5 +1,6 @@
 import { BleManager, Device } from "react-native-ble-plx";
 import { Buffer } from "buffer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   SERVICE, RX, TX, FrameAssembler, packet, ack, timePayload, decode, Decoded,
 } from "./protocol";
@@ -16,27 +17,53 @@ export class BandClient {
   device?: Device;
   private assembler = new FrameAssembler();
   private connected = false;
-  private started = false;
+  private listening = false;
+  private scanning = false;
 
   onStatus?: Status;
   onData?: Data;
   onBattery?: (level: number) => void;
 
   start() {
-    if (this.started) return;
-    this.started = true;
-    this.manager.onStateChange((state) => {
-      if (state === "PoweredOn") this.scan();
-      else if (state === "Unauthorized") this.onStatus?.("Bluetooth izni yok", false);
-      else if (state === "PoweredOff") this.onStatus?.("Bluetooth kapalı", false);
-    }, true);
+    if (!this.listening) {
+      this.listening = true;
+      this.manager.onStateChange((state) => {
+        if (state === "PoweredOn") this.begin();
+        else if (state === "Unauthorized") this.onStatus?.("Bluetooth izni yok", false);
+        else if (state === "PoweredOff") this.onStatus?.("Bluetooth kapalı", false);
+      }, true);
+      return;
+    }
+    this.begin();
+  }
+
+  private begin() {
+    if (this.connected || this.scanning) return;
+    this.connectKnown().then((ok) => {
+      if (!ok) this.scan();
+    });
+  }
+
+  private async connectKnown(): Promise<boolean> {
+    try {
+      const id = await AsyncStorage.getItem("ble.deviceId");
+      if (!id) return false;
+      this.onStatus?.("Bağlanıyor…", false);
+      const d = await this.manager.connectToDevice(id, { timeout: 8000 });
+      await this.attach(d);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private scan() {
-    if (this.connected) return;
+    if (this.connected || this.scanning) return;
+    this.scanning = true;
     this.onStatus?.("Saat aranıyor…", false);
     this.manager.startDeviceScan(null, null, async (error, dev) => {
       if (error) {
+        this.scanning = false;
         this.onStatus?.(`Tarama hatası: ${error.message}`, false);
         return;
       }
@@ -44,6 +71,7 @@ export class BandClient {
       const name = (dev.localName || dev.name || "").toUpperCase();
       if (name.includes("PBS163")) {
         this.manager.stopDeviceScan();
+        this.scanning = false;
         try {
           await this.connect(dev);
         } catch (e: any) {
@@ -52,7 +80,8 @@ export class BandClient {
       }
     });
     setTimeout(() => {
-      if (!this.connected) {
+      if (!this.connected && this.scanning) {
+        this.scanning = false;
         this.manager.stopDeviceScan();
         this.onStatus?.("Saat bulunamadı. Ekranına dokun ve tekrar dene.", false);
       }
@@ -63,7 +92,10 @@ export class BandClient {
     this.onStatus?.("Bağlanıyor…", false);
     let d = dev;
     try {
-      if (await d.isConnected()) await d.cancelConnection();
+      if (await d.isConnected()) {
+        await d.cancelConnection();
+        await this.sleep(300);
+      }
       d = await d.connect();
     } catch (e: any) {
       if (String(e?.message ?? "").toLowerCase().includes("already")) {
@@ -76,9 +108,15 @@ export class BandClient {
         throw e;
       }
     }
+    await this.attach(d);
+  }
+
+  private async attach(d: Device) {
     await d.discoverAllServicesAndCharacteristics();
     this.device = d;
     this.connected = true;
+    this.scanning = false;
+    AsyncStorage.setItem("ble.deviceId", d.id).catch(() => {});
     this.onStatus?.("Bağlandı", true);
 
     try {
