@@ -49,8 +49,8 @@ Uygulama içinde de aynı yönerge var: ana ekranda **"nasıl bağlanır?"**.
 Elle senkron için **yeniden senkron** bağlantısı. Bağlantıyı kesmek için
 **bağlantıyı kes**.
 
-**gece modu** bağlantısı koyu temaya geçirir; sistem koyuysa uygulama zaten
-koyu açılır. Seçim hatırlanır, **gündüz** ile geri döner.
+**GECE MODU** anahtarı koyu temaya geçirir; sistem koyuysa uygulama zaten
+koyu açılır. Anahtar kapatılınca açık tema. Seçim hatırlanır.
 
 **KAYIT** bölümü son 3 olayı gösterir; **tümü** ile günlük gruplu geçmiş açılır.
 Kayıtlar cihazda saklanır (en fazla 500), günler arasında `önceki / sonraki` ile

@@ -142,6 +142,7 @@ function Screen() {
   const [help, setHelp] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const stampAnim = useRef(new Animated.Value(0)).current;
+  const themeAnim = useRef(new Animated.Value(mode === "dark" ? 1 : 0)).current;
 
   const log = (msg: string) => {
     setLogs((prev) => [...prev.slice(-499), { ts: Date.now(), msg }]);
@@ -238,6 +239,14 @@ function Screen() {
       clearInterval(id);
     };
   }, []);
+
+  useEffect(() => {
+    Animated.timing(themeAnim, {
+      toValue: mode === "dark" ? 1 : 0,
+      duration: 160,
+      useNativeDriver: true,
+    }).start();
+  }, [mode, themeAnim]);
 
   useEffect(() => {
     if (!lastSync) return;
@@ -483,9 +492,6 @@ function Screen() {
                 <Text style={s.footLink}>bağlantıyı kes</Text>
               </Pressable>
             )}
-            <Pressable onPress={toggle} hitSlop={10}>
-              <Text style={s.footLink}>{mode === "dark" ? "gündüz" : "gece modu"}</Text>
-            </Pressable>
             <Pressable onPress={() => setHelp(true)} hitSlop={10}>
               <Text style={s.footLink}>nasıl bağlanır?</Text>
             </Pressable>
@@ -515,6 +521,35 @@ function Screen() {
             >
               {!musicOK ? "İZİN VER" : musicEnabled ? "AÇIK" : "KAPALI"}
             </Text>
+          </Pressable>
+        </View>
+
+        <View style={s.settingRow}>
+          <Text style={[s.foot, { color: C.ink }]}>GECE MODU</Text>
+          <Pressable
+            onPress={toggle}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: mode === "dark" }}
+            hitSlop={8}
+          >
+            <View style={[s.switchTrack, { borderColor: mode === "dark" ? C.green : C.muted }]}>
+              <Animated.View
+                style={[
+                  s.switchKnob,
+                  {
+                    backgroundColor: mode === "dark" ? C.green : C.muted,
+                    transform: [
+                      {
+                        translateX: themeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, 24],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            </View>
           </Pressable>
         </View>
 
@@ -811,6 +846,9 @@ function makeStyles(c: Palette) {
     borderWidth: 1.5, paddingHorizontal: 10, paddingVertical: 6,
   },
   musicDot: { width: 6, height: 6, borderRadius: 3 },
+  settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
+  switchTrack: { width: 46, height: 26, borderWidth: 1.5, padding: 2, justifyContent: "center" },
+  switchKnob: { width: 18, height: 18 },
   musicBtnText: { fontSize: 9.5, letterSpacing: 1.4, fontWeight: "800" },
   footLink: { fontSize: 11, color: c.muted, textDecorationLine: "underline" },
   error: { marginTop: 10, fontSize: 11, color: c.red, letterSpacing: 0.4 },
