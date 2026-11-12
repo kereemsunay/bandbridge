@@ -37,71 +37,59 @@ export class Health {
     if (!Health.ready) return;
     const now = new Date();
 
-    if (d.kind === "totals") {
-      const day = now.toISOString().slice(0, 10);
-      const lastDay = await AsyncStorage.getItem("hc.day");
-      let last = Number((await AsyncStorage.getItem("hc.steps")) ?? 0);
-      let lastDist = Number((await AsyncStorage.getItem("hc.dist")) ?? 0);
-      let lastCal = Number((await AsyncStorage.getItem("hc.cal")) ?? 0);
-      if (lastDay !== day) {
-        last = 0;
-        lastDist = 0;
-        lastCal = 0;
-      }
-      const delta = d.steps >= last ? d.steps - last : d.steps;
-      const deltaDist = d.distance >= lastDist ? d.distance - lastDist : d.distance;
-      const deltaCal = d.calories >= lastCal ? d.calories - lastCal : d.calories;
-      if (delta <= 0 && deltaDist <= 0 && deltaCal <= 0) return;
-
-      const start = (await AsyncStorage.getItem("hc.sampleStart")) ?? now.toISOString();
-      let from = new Date(Math.max(new Date(start).getTime(), new Date(day).getTime()));
-      if (from.getTime() >= now.getTime()) {
-        from = new Date(now.getTime() - 60_000);
-      }
-      await insertRecords([
-        {
-          recordType: "Steps",
-          count: delta,
-          startTime: from.toISOString(),
-          endTime: now.toISOString(),
-        },
-      ] as any);
-      if (deltaDist > 0) {
-        await insertRecords([
-          {
-            recordType: "Distance",
-            distance: { value: deltaDist, unit: "meters" },
-            startTime: from.toISOString(),
-            endTime: now.toISOString(),
-          },
-        ] as any);
-      }
-      if (deltaCal > 0) {
-        await insertRecords([
-          {
-            recordType: "ActiveCaloriesBurned",
-            energy: { value: deltaCal / CALORIES_PER_KCAL, unit: "kilocalories" },
-            startTime: from.toISOString(),
-            endTime: now.toISOString(),
-          },
-        ] as any);
-      }
-      await AsyncStorage.setItem("hc.steps", String(d.steps));
-      await AsyncStorage.setItem("hc.dist", String(d.distance));
-      await AsyncStorage.setItem("hc.cal", String(d.calories));
-      await AsyncStorage.setItem("hc.day", day);
-      await AsyncStorage.setItem("hc.sampleStart", now.toISOString());
-    }
-
     if (d.kind === "steps" && d.buckets.length) {
-      await insertRecords(
-        d.buckets.map((b) => ({
-          recordType: "Steps",
-          count: b.steps,
-          startTime: b.start.toISOString(),
-          endTime: new Date(b.start.getTime() + 15 * 60_000).toISOString(),
-        })) as any
-      );
+      // 15-min buckets carry their own date. They are the only reliable source:
+      // the band's undated total (key 0C) can stay on yesterday's value.
+      const byDay = new Map<string, typeof d.buckets>();
+      for (const b of d.buckets) {
+        const key = `${b.start.getFullYear()}-${String(b.start.getMonth() + 1).padStart(2, "0")}-${String(b.start.getDate()).padStart(2, "0")}`;
+        const arr = byDay.get(key) ?? [];
+        arr.push(b);
+        byDay.set(key, arr);
+      }
+      for (const [day, buckets] of byDay) {
+        const storeKey = `hc.buckets.${day}`;
+        const raw = await AsyncStorage.getItem(storeKey);
+        let seen: string[] = [];
+        try {
+          seen = raw ? JSON.parse(raw) : [];
+        } catch {}
+        const known = new Set(seen);
+        const fresh = buckets.filter((b) => !known.has(b.start.toISOString()));
+        if (!fresh.length) continue;
+        await insertRecords(
+          fresh.map((b) => ({
+            recordType: "Steps",
+            count: b.steps,
+            startTime: b.start.toISOString(),
+            endTime: new Date(b.start.getTime() + 15 * 60_000).toISOString(),
+          })) as any
+        );
+        const withDistance = fresh.filter((b) => b.distance > 0);
+        if (withDistance.length) {
+          await insertRecords(
+            withDistance.map((b) => ({
+              recordType: "Distance",
+              distance: { value: b.distance, unit: "meters" },
+              startTime: b.start.toISOString(),
+              endTime: new Date(b.start.getTime() + 15 * 60_000).toISOString(),
+            })) as any
+          );
+        }
+        const withCal = fresh.filter((b) => b.calories > 0);
+        if (withCal.length) {
+          await insertRecords(
+            withCal.map((b) => ({
+              recordType: "ActiveCaloriesBurned",
+              energy: { value: b.calories / CALORIES_PER_KCAL, unit: "kilocalories" },
+              startTime: b.start.toISOString(),
+              endTime: new Date(b.start.getTime() + 15 * 60_000).toISOString(),
+            })) as any
+          );
+        }
+        fresh.forEach((b) => known.add(b.start.toISOString()));
+        await AsyncStorage.setItem(storeKey, JSON.stringify([...known].slice(-400)));
+      }
     }
 
     if (d.kind === "hr" && d.samples.length) {

@@ -52,6 +52,10 @@ Elle senkron için **yeniden senkron** bağlantısı. Bağlantıyı kesmek için
 **GECE MODU** anahtarı koyu temaya geçirir; sistem koyuysa uygulama zaten
 koyu açılır. Anahtar kapatılınca açık tema. Seçim hatırlanır.
 
+Saat, gün dönümünü kendi iç saatiyle yapar. Saatin tarihi kaymışsa (uzun süre
+bağlanılmadıysa) uygulama bağlanırken saati tekrar ayarlar; günlük toplam yine
+eski sayıda kalırsa saat bir kez kapatılıp açılmalıdır.
+
 **KAYIT** bölümü son 3 olayı gösterir; **tümü** ile günlük gruplu geçmiş açılır.
 Kayıtlar cihazda saklanır (en fazla 500), günler arasında `önceki / sonraki` ile
 gezinilir, **temizle** hepsini siler.
@@ -60,13 +64,19 @@ gezinilir, **temizle** hepsini siler.
 
 | Veri | Ne zaman gelir |
 |---|---|
-| Adım, mesafe, kalori | Bağlanınca anında (günün toplamı) |
+| Adım, mesafe, kalori | Bağlanınca; saatteki 15 dakikalık kayıtlardan |
 | Nabız | Geçmiş senkronunda; saatte ölçüm yapılmışsa |
 | Uyku | Ancak bir gece saat takılıysa, ertesi gün |
 | Geçmiş günler | Bir gün tamamlandıktan sonra |
 | SpO2, tansiyon, sıcaklık | Cihazda ölçüm varsa, geçmiş senkronunda |
 | Antrenman kaydı | Saatten antrenman başlatıldıysa |
 | Şarj | Bağlanınca üst şeritte |
+
+Saat iki ayrı sayı gönderir: tarihsiz **günlük toplam** ve **15 dakikalık
+kayıtlar**. Tarihsiz toplam, saatin kendi günü dönmediyse dünkü sayıda kalabilir.
+Bu yüzden BandBridge ekranda ve Health Connect'te **tarihli 15 dakikalık
+kayıtları** esas alır; toplam yalnızca o güne ait kayıt yoksa gösterilir. Böylece
+gün değişince sayı sıfırdan başlar ve geçmiş günler karışmaz.
 
 Bugünün toplamı `0` görünüyorsa saat gerçekten o gün adım saymamış olabilir;
 uygulama sahte değer üretmez.

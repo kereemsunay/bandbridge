@@ -100,7 +100,8 @@ struct ContentView: View {
             healthOK = HealthStore.shared.isAuthorized()
             band.onDecoded = { d in
                 if let t = d.totals {
-                    HealthStore.shared.writeTotals(steps: t.steps, distance: t.distance, calories: t.calories)
+                    // Undated band total (key 0x0C) is display-only; dated buckets below
+                    // are the source of truth, so it is not written to HealthKit.
                 }
                 if !d.stepBuckets.isEmpty { HealthStore.shared.writeStepBuckets(d.stepBuckets) }
                 if !d.heart.isEmpty { HealthStore.shared.writeHeart(d.heart) }

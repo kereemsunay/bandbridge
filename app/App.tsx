@@ -133,6 +133,7 @@ function Screen() {
   const musicRef = useRef(false);
   const musicEnabledRef = useRef(true);
   const batteryRef = useRef<number | null>(null);
+  const todayBucketsRef = useRef(false);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [history, setHistory] = useState(false);
   const [dayIdx, setDayIdx] = useState(0);
@@ -292,19 +293,38 @@ function Screen() {
         setStatus(text);
         setConnected(conn);
         setPhase(phaseOf(text, conn));
+        if (!conn || text.toUpperCase().includes("SENKRON")) todayBucketsRef.current = false;
         if (conn) setCancelled(false);
         log(text.toLowerCase());
       };
 
       client.onData = async (d: Decoded) => {
         if (!alive) return;
-        if (d.kind === "totals") {
-          setSteps(d.steps);
-          setDist(d.distance);
-          setCal(d.calories);
-          log(`${fmt(d.steps)} adım · ${distance(d.distance)}`);
-        } else if (d.kind === "steps") {
-          log(`${d.buckets.length} saatlik blok`);
+        if (d.kind === "steps") {
+          const now = new Date();
+          const today = d.buckets.filter(
+            (b) =>
+              b.start.getFullYear() === now.getFullYear() &&
+              b.start.getMonth() === now.getMonth() &&
+              b.start.getDate() === now.getDate()
+          );
+          if (today.length) {
+            todayBucketsRef.current = true;
+            setSteps(today.reduce((a, b) => a + b.steps, 0));
+            setDist(today.reduce((a, b) => a + b.distance, 0));
+            setCal(today.reduce((a, b) => a + b.calories, 0));
+            log(`bugün ${today.reduce((a, b) => a + b.steps, 0)} adım · ${today.length} blok`);
+          } else {
+            log(`${d.buckets.length} saatlik blok`);
+          }
+        } else if (d.kind === "totals") {
+          // Undated band total. Only used until today's dated buckets arrive.
+          if (!todayBucketsRef.current) {
+            setSteps(d.steps);
+            setDist(d.distance);
+            setCal(d.calories);
+            log(`${fmt(d.steps)} adım · ${distance(d.distance)}`);
+          }
         } else if (d.kind === "hr") {
           const last = d.samples[d.samples.length - 1];
           if (last) setHr(last.bpm);

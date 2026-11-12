@@ -153,9 +153,12 @@ export class BandClient {
     await this.sleep(400);
     await this.write(packet(0x03, 0x00, Array.from(Buffer.from(USER_ID))));
     await this.sleep(400);
-    await this.write(packet(0x05, 0x01)); // history
-    await this.sleep(500);
-    await this.write(packet(0x05, 0x06, [0x01])); // realtime steps
+    // Vendor order: realtime switch first, then history, then today's history.
+    await this.write(packet(0x05, 0x06, [0x01]));
+    await this.sleep(400);
+    await this.write(packet(0x05, 0x01)); // all history
+    await this.sleep(400);
+    await this.write(packet(0x05, 0x0a)); // today
     this.buzz(300);
     this.onStatus?.("Bağlı", true);
   }

@@ -8,6 +8,7 @@ final class HealthStore {
     private let stepTotalKey = "health.lastStepTotal"
     private let stepTotalDayKey = "health.lastStepDay"
     private let stepSampleTimeKey = "health.lastStepSampleEnd"
+    private let stepBucketKey = "health.stepBuckets"
     private let sleepKey = "health.sleepDates"
     private let hrKey = "health.hrTimes"
 
@@ -77,16 +78,17 @@ final class HealthStore {
 
     func writeStepBuckets(_ buckets: [StepBucket]) {
         guard let t = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
-        var written = Set<String>()
-        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd-HH"
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd-HH-mm"
+        var seen = Set<String>(UserDefaults.standard.stringArray(forKey: stepBucketKey) ?? [])
         for b in buckets where b.steps > 0 {
             let key = fmt.string(from: b.start)
-            guard !written.contains(key) else { continue }
-            written.insert(key)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
             let end = b.start.addingTimeInterval(15 * 60)
             let q = HKQuantitySample(type: t, quantity: HKQuantity(unit: .count(), doubleValue: Double(b.steps)), start: b.start, end: end)
             store.save(q) { _, e in if let e { print("bucket save: \(e)") } }
         }
+        UserDefaults.standard.set(Array(seen.suffix(8000)), forKey: stepBucketKey)
     }
 
     // MARK: heart (key 0x04)
