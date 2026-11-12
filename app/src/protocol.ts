@@ -58,7 +58,8 @@ export type Decoded =
   | { kind: "bp"; time: Date; systolic: number; diastolic: number }
   | { kind: "temp"; time: Date; celsius: number }
   | { kind: "workout"; start: Date; end: Date; mode: number; hr: number[]; calories: number; distance: number; steps: number }
-  | { kind: "media"; key: number };
+  | { kind: "media"; key: number }
+  | { kind: "syncEnd" };
 
 const u16 = (b: Uint8Array, i: number) => (b[i] << 8) | b[i + 1];
 const u32 = (b: Uint8Array, i: number) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
@@ -74,6 +75,7 @@ function dateOf(b: Uint8Array, offset = 0): Date {
 
 export function decode(f: Frame): Decoded | null {
   if (f.cat === 0x0c) return { kind: "media", key: f.key };
+  if (f.cat === 0x05 && f.key === 0x08) return { kind: "syncEnd" };
   if (f.cat !== 0x05 || f.payload.length < 2) return null;
   const p = f.payload;
   const date = dateOf(p);

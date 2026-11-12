@@ -134,6 +134,7 @@ function Screen() {
   const musicEnabledRef = useRef(true);
   const batteryRef = useRef<number | null>(null);
   const todayBucketsRef = useRef(false);
+  const ignoreTotalsRef = useRef(false);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [history, setHistory] = useState(false);
   const [dayIdx, setDayIdx] = useState(0);
@@ -293,7 +294,10 @@ function Screen() {
         setStatus(text);
         setConnected(conn);
         setPhase(phaseOf(text, conn));
-        if (!conn || text.toUpperCase().includes("SENKRON")) todayBucketsRef.current = false;
+        if (!conn || text.toUpperCase().includes("SENKRON")) {
+          todayBucketsRef.current = false;
+          ignoreTotalsRef.current = false;
+        }
         if (conn) setCancelled(false);
         log(text.toLowerCase());
       };
@@ -319,11 +323,19 @@ function Screen() {
           }
         } else if (d.kind === "totals") {
           // Undated band total. Only used until today's dated buckets arrive.
-          if (!todayBucketsRef.current) {
+          if (!todayBucketsRef.current && !ignoreTotalsRef.current) {
             setSteps(d.steps);
             setDist(d.distance);
             setCal(d.calories);
             log(`${fmt(d.steps)} adım · ${distance(d.distance)}`);
+          }
+        } else if (d.kind === "syncEnd") {
+          if (!todayBucketsRef.current) {
+            setSteps(0);
+            setDist(0);
+            setCal(0);
+            ignoreTotalsRef.current = true;
+            log("bugün için kayıt yok");
           }
         } else if (d.kind === "hr") {
           const last = d.samples[d.samples.length - 1];
